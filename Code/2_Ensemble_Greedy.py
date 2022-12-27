@@ -99,76 +99,81 @@ from sklearn.model_selection import cross_val_score, StratifiedKFold
 # In[ ]:
 
 
-# # greedy search
-# greedy_all = []
-# score_functions = [chi2, f_classif, mutual_info_classif]
-# clfs = [RandomForestClassifier(random_state=0, n_jobs=1), LogisticRegression(max_iter=10000, random_state=0, n_jobs=1)]
-# Model = LogisticRegression(max_iter=10000, random_state=0, n_jobs=1)
-# #! Original greedy_all's maximum length is up to 22, but 24 is correct.
-# #! modify, train_X1.shape[1]-1 -> train_X1.shape[1]
-# for k in trange(train_X1.shape[1]-1):
-#     features = []
-#     scores = []
-#     for sf in score_functions:
-#         selector = SelectKBest(sf, k=1)
-#         # select one best feature and add it to subset
-#         selector.fit(train_X1.drop(greedy_all, axis=1), train_Y)
-#         f = train_X1.columns.drop(greedy_all)[selector.get_support()]
-#         features.append(f[0])
-#         cv = cross_val_score(Model, train_X1[greedy_all+[f[0]]], train_Y, scoring='f1', n_jobs=1)
-#         scores.append(cv.mean())
-    
-#     for clf in clfs:
-#         selector = SequentialFeatureSelector(clf, n_features_to_select=1, scoring='f1', cv=5, n_jobs=1)
-#         # select one best feature and add it to subset
-#         selector.fit(train_X1.drop(greedy_all, axis=1), train_Y)
-#         f = train_X1.columns.drop(greedy_all)[selector.get_support()]
-#         features.append(f[0])
-#         cv = cross_val_score(Model, train_X1[greedy_all+[f[0]]], train_Y, scoring='f1', n_jobs=1)
-#         scores.append(cv.mean())
+# greedy search
+greedy_all = []
+score_functions = [chi2, f_classif, mutual_info_classif]
+clfs = [RandomForestClassifier(random_state=0, n_jobs=1), LogisticRegression(max_iter=10000, random_state=0, n_jobs=1)]
+Model = LogisticRegression(max_iter=10000, random_state=0, n_jobs=1)
+#! Original greedy_all's maximum length is up to 22, but 24 is correct.
+#! modify, train_X1.shape[1]-1 -> train_X1.shape[1]
 
-#     for clf in clfs:
-#         selector = SelectFromModel(clf, threshold=-np.inf, max_features=1)
-#         # select one best feature and add it to subset
-#         selector.fit(train_X1.drop(greedy_all, axis=1), train_Y)
-#         f = train_X1.columns.drop(greedy_all)[selector.get_support()]
-#         features.append(f[0])
-#         cv = cross_val_score(Model, train_X1[greedy_all+[f[0]]], train_Y, scoring='f1', n_jobs=1)
-#         scores.append(cv.mean())
+for i in range(3):
+    for k in trange(train_X1.shape[1]-1):
+        features = []
+        scores = []
+        for sf in score_functions:
+            selector = SelectKBest(sf, k=1)
+            # select one best feature and add it to subset
+            selector.fit(train_X1.drop(greedy_all, axis=1), train_Y)
+            f = train_X1.columns.drop(greedy_all)[selector.get_support()]
+            features.append(f[0])
+            cv = cross_val_score(Model, train_X1[greedy_all+[f[0]]], train_Y, scoring='f1', n_jobs=1)
+            scores.append(cv.mean())
+        
+        for clf in clfs:
+            selector = SequentialFeatureSelector(clf, n_features_to_select=1, scoring='f1', cv=5, n_jobs=1)
+            # select one best feature and add it to subset
+            selector.fit(train_X1.drop(greedy_all, axis=1), train_Y)
+            f = train_X1.columns.drop(greedy_all)[selector.get_support()]
+            features.append(f[0])
+            cv = cross_val_score(Model, train_X1[greedy_all+[f[0]]], train_Y, scoring='f1', n_jobs=1)
+            scores.append(cv.mean())
 
-#     count = pd.value_counts(features)
-#     most_freq_times = count[0]
-#     meets = count[count==most_freq_times].index
+        for clf in clfs:
+            selector = SelectFromModel(clf, threshold=-np.inf, max_features=1)
+            # select one best feature and add it to subset
+            selector.fit(train_X1.drop(greedy_all, axis=1), train_Y)
+            f = train_X1.columns.drop(greedy_all)[selector.get_support()]
+            features.append(f[0])
+            cv = cross_val_score(Model, train_X1[greedy_all+[f[0]]], train_Y, scoring='f1', n_jobs=1)
+            scores.append(cv.mean())
 
-#     print('features', features)
-#     print('scores', scores)
-#     print('count\n:', count)
-#     print('meets:', meets)
-#     if len(meets) == 1:
-#         greedy_all.append(meets[0])
-#     else:
-#         features = np.array(features)
-#         scores = np.array(scores)
-#         best_score = 0
-#         for meet in meets:
-#             index = (features==meet)
-#             print('meet', meet, scores[index].mean())
-#             if scores[index].mean() > best_score:
-#                 best_score = scores[index].mean()
-#                 best_feature = meet
-#         greedy_all.append(best_feature)
+        count = pd.value_counts(features)
+        most_freq_times = count[0]
+        meets = count[count==most_freq_times].index
 
-#     print(greedy_all)
+        # print('features', features)
+        # print('scores', scores)
+        # print('count\n:', count)
+        # print('meets:', meets)
+        if len(meets) == 1:
+            greedy_all.append(meets[0])
+        else:
+            features = np.array(features)
+            scores = np.array(scores)
+            best_score = 0
+            for meet in meets:
+                index = (features==meet)
+                # print('meet', meet, scores[index].mean())
+                if scores[index].mean() > best_score:
+                    best_score = scores[index].mean()
+                    best_feature = meet
+            greedy_all.append(best_feature)
 
-#     #! modify
-#     # i_best = np.argmax(scores)
-#     # greedy_all.append(features[i_best])
-#     # print(features)
-#     # print(len(greedy_all))
-#     # print(greedy_all)
+        # print(greedy_all)
+
+        #! modify
+        i_best = np.argmax(scores)
+        greedy_all.append(features[i_best])
+        # print(features)
+        # print(len(greedy_all))
+        if k == 5:
+            break
+    print(greedy_all)
+    greedy_all = []
 
 
-# pd.DataFrame([greedy_all], index=['greedy']).to_csv('../Results/Greedy_Feature_sets.csv')
+pd.DataFrame([greedy_all], index=['greedy']).to_csv('../Results/Greedy_Feature_sets.csv')
 
 
 # In[ ]:

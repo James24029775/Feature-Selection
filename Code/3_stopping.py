@@ -39,23 +39,20 @@ def main():
                         score, _ = text2tuple(text_tuple, tasks[i])
                     score_df.at[index, column] = score
             size_df = size_df.astype(int)
-            # mv F1_png method_1/F1_png
-            # mv MultiBar method_1/MultiBar
-            # mv Time_png method_1/Time_png
 
-
-            plt.clf()
             for index in record_df.index:
                 index_score = score_df.loc[index].values
                 # Get stopping points by the following methods.
                 stop_index1 = MaxDelta(index_score, args, tasks[i], size_df.loc[index])
                 stop_index2 = MinPerfReq(index_score, args, tasks[i], size_df.loc[index])
                 stop_index3 = MaxScore(index_score, args, tasks[i], size_df.loc[index])
+                # stop_index4 = MyScore(index_score, args, tasks[i], size_df.loc[index])
 
                 # save the stopping feature size by different methods
                 stop_acc1 = index_score[stop_index1]
                 stop_acc2 = index_score[stop_index2]
                 stop_acc3 = index_score[stop_index3]
+                # stop_acc4 = index_score[stop_index4]
                 index_all.append(tasks[i] + '_' + models[j] + '_' + index)
                 if tasks[i] == 'Set':
                     info = [size_df.loc[index][str(stop_index1)], stop_acc1, size_df.loc[index][str(stop_index2)], stop_acc2, size_df.loc[index][str(stop_index3)], stop_acc3]
@@ -63,15 +60,6 @@ def main():
                     info = [stop_index1+1, stop_acc1, stop_index2+1, stop_acc2, stop_index3+1, stop_acc3]
                 stop_df_all.append(info)
 
-                plt.plot(range(1, len(index_score)+1), index_score,  linestyle='-', label=index)
-
-            plt.xlabel('Number of Features')
-            plt.ylabel('F1 Score')
-            # plt.xlim((1, 25))
-            # plt.ylim((0.6, 1))
-            plt.legend()
-            plt.grid()
-            plt.savefig(os.path.join('../Evaluation/F1_png', filename + '.png'))
 
 
     print(len(stop_df_all))
@@ -111,14 +99,47 @@ def MinPerfReq(score, args, task, size_df):
 def MaxScore(score, args, task, size_df):
     best_performance = 0
     index = len(score) - 1
+
     for i in range(len(score)-1, 0, -1):
-        current_size = i + 1
-        adj_score = score[i] - (args.rho * current_size)
+        if task == 'Set':
+            adj_score = score[i] - (args.rho * size_df[i])
+        else:
+            current_size = i + 1
+            adj_score = score[i] - (args.rho * current_size)
         if adj_score > best_performance and score[i-1] != 0:
             best_performance = adj_score
             index = i
 
     return index
+
+def MyScore(score, args, task, size_df):
+    smallest_angle = 999
+    start_score = score[0]
+    end_score = score[len(score)-1]
+    index = len(score) - 1
+    print(task)
+    for i in range(1, len(score)-1):
+        start_slope = (score[i] - start_score)/(i - 0)
+        end_slope = (end_score - score[i])/(len(score)-1-i)
+
+        x = np.array([1,start_slope])
+        y = np.array([1,end_slope])
+
+        Lx = np.sqrt(x.dot(x))
+        Ly = np.sqrt(y.dot(y))
+
+        angle = (np.arccos(x.dot(y)/(float(Lx*Ly)))*180/np.pi)
+        angle = 180 - angle
+
+        print(i, angle)
+
+        # 
+        if smallest_angle > angle and score[i-1] != 0:
+            smallest_angle = angle
+            index = i
+    print(index)
+    return index
+
 
 
 if __name__ == "__main__":
